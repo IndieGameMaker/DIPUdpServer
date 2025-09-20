@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
+using System.Text;
 
 namespace BasicGameServer;
 
@@ -116,15 +117,44 @@ public class UdpGameServer
             Console.WriteLine("클라이언트 메시지" + message);
 
             // Ping - Pong
-            if (message == "PING")
+            if (message.ToUpper() == "PING")
             {
                 await SendToClientAsync(clientEndPoint, "PONG");
+            }
+            else if (message.ToUpper().StartsWith("MOVE:"))
+            {
+                Console.WriteLine($"플레이어 이동:{message}");
+                // 브로드캐스팅 로직 (송신한 클라이언트를 제외한 모든 유저에게 송신)
+                await BroadcastMessageAsync(clientEndPoint, message);
             }
         }
         catch (Exception e)
         {
             Console.WriteLine(e.Message);
         }
+    }
+    
+    // Broadcasting Logic
+    private async Task BroadcastMessageAsync(EndPoint senderEndPoint, string message)
+    {
+        var messageData = Encoding.UTF8.GetBytes(message);
+        int sendCount = 0;
+        
+        // 2분 이내에 활성화 된 클라이언트를 필터링 하기 위한 시간
+        var cutoffTime = DateTime.Now.AddMinutes(-2);
+
+        foreach (var kvp in _connectedClients)
+        {
+            Console.WriteLine($"{kvp.Key} - (활성 : {kvp.Value > cutoffTime})");
+
+            if (kvp.Value > cutoffTime)
+            {
+                await _udpServer.SendAsync(messageData, messageData.Length, (IPEndPoint)senderEndPoint);
+                sendCount++;
+            }
+        }
+        
+        Console.WriteLine($"브로드캐스트: {sendCount}명에게 전송 -> {message}");
     }
     
 }
