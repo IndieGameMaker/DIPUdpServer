@@ -77,12 +77,53 @@ public class UdpGameServer
                 // 클라이언트 추가 또는 업데이트
                 _connectedClients.AddOrUpdate(clientEndPoint, DateTime.Now, (key, value) => DateTime.Now);
                 Console.WriteLine($"메시지 수신: {clientEndPoint} ({receivedData.Length} bytes)");
+                
+                // 수신한 메시지를 처리하는 메소드 호출
+                await ProcessMessageAsync(clientEndPoint, receivedData);
             }
             catch (Exception e)
             {
                 Console.WriteLine(e.Message);
                 throw;
             }
+        }
+    }
+    
+    // 메시지 전송 메소드 
+    private async Task SendToClientAsync(EndPoint clientEndPoint, string message)
+    {
+        try
+        {
+            // 문자열을 바이트로 변환
+            var responseData = System.Text.Encoding.UTF8.GetBytes(message);
+            // 전송 SendAsync() 사용
+            await _udpServer.SendAsync(responseData, responseData.Length, (IPEndPoint)clientEndPoint);
+            
+            Console.WriteLine($"메시지 전송: {clientEndPoint} -> {message}");
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e.Message);
+        }
+    }
+    
+    // 메시지 종류별로 처리하는 메소드
+    private async Task ProcessMessageAsync(EndPoint clientEndPoint, byte[] data)
+    {
+        try
+        {
+            var message = System.Text.Encoding.UTF8.GetString(data).Trim();
+            Console.WriteLine("클라이언트 메시지" + message);
+
+            // Ping - Pong
+            if (message == "PING")
+            {
+                await SendToClientAsync(clientEndPoint, "PONG");
+            }
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e.Message);
         }
     }
     
