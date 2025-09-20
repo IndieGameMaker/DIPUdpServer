@@ -37,4 +37,53 @@ public class UdpGameServer
         _port = port;
         _connectedClients = new ConcurrentDictionary<IPEndPoint, DateTime>();
     }
+    
+    // 서버 시작 - UDP 리스너 구동
+    public async Task StartAsync()
+    {
+        try
+        {
+            // UDP서버 소켓 생성 및 포트 바인딩
+            _udpServer = new UdpClient(_port);
+            // 취소 토큰 생성
+            _cancellationTokenSource = new CancellationTokenSource();
+        
+            Console.WriteLine($"UDP 서버가동 시작 : 포트 {_port}");
+            
+            // 메시지 수신 처리
+            await ReceiveMessageAsync();
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine("서버시작 오류 " + e.Message);
+            throw;
+        }
+    }
+    
+    // 메시지 수신 메소드
+    private async Task ReceiveMessageAsync()
+    {
+        while (!_cancellationTokenSource.IsCancellationRequested)
+        {
+            try
+            {
+                // UDP 패킷 수신 (비동기)
+                var result = await _udpServer.ReceiveAsync();
+                // 수신데이터 IP Addr,port 정보
+                var clientEndPoint = result.RemoteEndPoint;
+                // 수신 받은 데이터를 (byte array)
+                var receivedData = result.Buffer;
+                
+                // 클라이언트 추가 또는 업데이트
+                _connectedClients.AddOrUpdate(clientEndPoint, DateTime.Now, (key, value) => DateTime.Now);
+                Console.WriteLine($"메시지 수신: {clientEndPoint} ({receivedData.Length} bytes)");
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+                throw;
+            }
+        }
+    }
+    
 }
